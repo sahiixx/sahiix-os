@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-20T19:24:24.695Z",
+  "entries": {
+    "memory:memory/2026-04-20.md:1:36": {
+      "key": "memory:memory/2026-04-20.md:1:36",
+      "path": "memory/2026-04-20.md",
+      "startLine": 1,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "# memory/2026-04-20.md ## Session: First contact - Sahiix set up the bot (me, x ✦) - Named me \"x\" — short and punchy, they like that style - User: Sahiix, timezone Asia/Dubai (GMT+4) - BOOTSTRAP.md deleted — officially bootstrapped - Sahiix wants me active — proactive, not just waiting ## Files shared (inbound media) ### AI Prompt Docs Sahiix sent me 5 files about AI system prompt engineering: 1. **Prompt Evolution Timeline & Hybrid Framework** — GPT-4 → GPT-5.2 → Gemini 3 evolution; dual-channel (analysis/commentary), oververbosity scaling, adversarial detection 2. **Elite-Bot** — minimal, high-speed, technical, tool-chaining focus 3. **Master System Prompt (v1 + updated)** — XML/artifa",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-20T19:24:24.695Z",
+      "lastRecalledAt": "2026-04-20T19:24:24.695Z",
+      "queryHashes": [
+        "b2af16514fd6"
+      ],
+      "recallDays": [
+        "2026-04-20"
+      ],
+      "conceptTags": [
+        "gpt",
+        "memory/2026-04-20.md",
+        "asia/dubai",
+        "bootstrap.md",
+        "gpt-4",
+        "gpt-5.2",
+        "dual-channel",
+        "analysis/commentary"
+      ]
+    },
+    "memory:memory/2026-04-20.md:73:97": {
+      "key": "memory:memory/2026-04-20.md:73:97",
+      "path": "memory/2026-04-20.md",
+      "startLine": 73,
+      "endLine": 97,
+      "source": "memory",
+      "snippet": "- `WHATSAPP_TEMPLATES.md` — post-call messages + follow-up sequence (Day 3/7/14) + property card - `SAHIIXX_OS_ARCHITECTURE.md` — OpenClaw agent team: BrokerOps + LeadIntake + Enrichment + Nurture + CRMOps - `INTEGRATION_CONTRACT.md` — all payload shapes, webhook schemas, auth matrix - `MVP_SCOPE.md` — Week 1-2 deployment: 10 test calls → 50 calls/day → 1 meeting - `AGENT_MEMORY.md` — how agents should represent Sahil: tone, persona, lead rules, CTA - `MASTER_INDEX.md` — single source of truth, all files mapped - `LINUX_COMMANDS.md` — 69 commands extracted from 101 Linux Commands PDF ### Campaign tiers built - **Script 1 (VIP Exclusive):** 366 contacts, AED 22.46B pipeline, CLOSER + Hormozi",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-20T19:24:24.695Z",
+      "lastRecalledAt": "2026-04-20T19:24:24.695Z",
+      "queryHashes": [
+        "b2af16514fd6"
+      ],
+      "recallDays": [
+        "2026-04-20"
+      ],
+      "conceptTags": [
+        "whatsapp-templates.md",
+        "post-call",
+        "follow-up",
+        "3/7/14",
+        "sahiixx-os-architecture.md",
+        "integration-contract.md",
+        "mvp-scope.md",
+        "1-2"
+      ]
+    }
+  }
+}

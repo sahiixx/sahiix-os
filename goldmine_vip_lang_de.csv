@@ -1,0 +1,5 @@
+name,phone,language,nationality,rfm_score,total_volume_aed,frequency,recency_days,areas,prop_types,last_date
+AKELE AMIN,+971505562490,de,Germany,9.2,71722552.0,19,679,Burj Khalifa,Flat|Hotel Apartment,2024-05-28
+STEFANIE GEDE,+49553319660,de,Germany,9.2,51875000.0,11,654,Burj Khalifa,,2024-06-22
+RAFI NEIRO,+971551109990,de,Germany,8.9,21482992.0,12,704,Burj Khalifa,Flat|Hotel Apartment,2024-05-03
+ALEX REINHARDT,+971509435435,de,Germany,8.6,14472104.0,9,698,Burj Khalifa,Flat,2024-05-09
