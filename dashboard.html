@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAHIIX.AI Estate Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e293b, #334155); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 24px; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+    .stat-card { background: #1e293b; border-radius: 10px; padding: 20px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #60a5fa; }
+    .stat-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-top: 5px; }
+    .section { background: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: #f8fafc; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px; border-bottom: 1px solid #334155; color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+    td { padding: 12px; border-bottom: 1px solid #1e293b; }
+    .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .status-new { background: #1e3a5f; color: #60a5fa; }
+    .status-contacted { background: #3b2f1e; color: #fbbf24; }
+    .status-qualified { background: #1e3b2f; color: #34d399; }
+    .status-closed { background: #2d1e3b; color: #a78bfa; }
+    .status-available { background: #1e3b2f; color: #34d399; }
+    .btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #2563eb; }
+    .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+    input, select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; }
+    .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .pipeline-stage { text-align: center; padding: 15px; background: #0f172a; border-radius: 8px; }
+    .pipeline-count { font-size: 28px; font-weight: 700; }
+    .pipeline-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">SAHIIX.AI Estate</div>
+    <div>Dubai Real Estate Lead Management</div>
+  </div>
+
+  <div class="container">
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-title">Lead Pipeline</div>
+      <div class="pipeline" id="pipeline"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Add Lead</div>
+      <div class="form-row">
+        <input id="lead-name" placeholder="Name">
+        <input id="lead-phone" placeholder="Phone">
+        <input id="lead-email" placeholder="Email">
+      </div>
+      <div class="form-row">
+        <select id="lead-property"><option value="">Select Property</option></select>
+        <input id="lead-notes" placeholder="Notes">
+        <button class="btn" onclick="addLead()">Add Lead</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Properties</div>
+      <table id="properties-table">
+        <thead><tr><th>Property</th><th>Location</th><th>Price</th><th>Beds</th><th>Baths</th><th>Sqft</th><th>Status</th></tr></thead>
+        <tbody id="properties-body"></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Leads</div>
+      <table id="leads-table">
+        <thead><tr><th>Name</th><th>Contact</th><th>Property</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
+        <tbody id="leads-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001';
+
+    async function fetchJSON(url, opts) {
+      const res = await fetch(API + url, opts);
+      return res.json();
+    }
+
+    async function loadDashboard() {
+      const data = await fetchJSON('/dashboard');
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${data.total_properties}</div><div class="stat-label">Properties</div></div>
+        <div class="stat-card"><div class="stat-value">${data.pipeline.new || 0}</div><div class="stat-label">New Leads</div></div>
+        <div class="stat-card"><div class="stat-value">${data.pipeline.qualified || 0}</div><div class="stat-label">Qualified</div></div>
+        <div class="stat-card"><div class="stat-value">${data.pipeline.closed || 0}</div><div class="stat-label">Closed</div></div>
+      `;
+      document.getElementById('pipeline').innerHTML = ['new','contacted','qualified','closed'].map(s => `
+        <div class="pipeline-stage">
+          <div class="pipeline-count">${data.pipeline[s] || 0}</div>
+          <div class="pipeline-label">${s}</div>
+        </div>
+      `).join('');
+    }
+
+    async function loadProperties() {
+      const props = await fetchJSON('/properties');
+      const select = document.getElementById('lead-property');
+      select.innerHTML = '<option value="">Select Property</option>' + props.map(p => `<option value="${p.id}">${p.title} - ${p.location}</option>`).join('');
+      document.getElementById('properties-body').innerHTML = props.map(p => `
+        <tr>
+          <td>${p.title}</td><td>${p.location}</td><td>AED ${(p.price/1000000).toFixed(1)}M</td>
+          <td>${p.beds}</td><td>${p.baths}</td><td>${p.sqft?.toLocaleString()}</td>
+          <td><span class="status status-${p.status}">${p.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadLeads() {
+      const leads = await fetchJSON('/leads');
+      document.getElementById('leads-body').innerHTML = leads.map(l => `
+        <tr>
+          <td>${l.name}</td><td>${l.phone || ''} ${l.email || ''}</td><td>${l.property_title || '-'}</td>
+          <td><span class="status status-${l.status}">${l.status}</span></td><td>${l.notes || ''}</td>
+          <td><select onchange="updateLead(${l.id}, this.value)">
+            ${['new','contacted','qualified','closed'].map(s => `<option value="${s}" ${s===l.status?'selected':''}>${s}</option>`).join('')}
+          </select></td>
+        </tr>
+      `).join('');
+    }
+
+    async function addLead() {
+      const name = document.getElementById('lead-name').value;
+      if (!name) return;
+      await fetchJSON('/leads', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
+        name, phone: document.getElementById('lead-phone').value, email: document.getElementById('lead-email').value,
+        property_id: document.getElementById('lead-property').value || null, notes: document.getElementById('lead-notes').value
+      })});
+      loadLeads(); loadDashboard();
+    }
+
+    async function updateLead(id, status) {
+      await fetchJSON(`/leads/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+      loadDashboard();
+    }
+
+    loadDashboard(); loadProperties(); loadLeads();
+  </script>
+</body>
+</html>
