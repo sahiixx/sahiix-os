@@ -76,8 +76,13 @@ const serveFile = (res, filePath, contentType) => {
 
 const routes = {
   'GET /': (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/dashboard.html"></head><body>Redirecting to dashboard...</body></html>`);
+  },
+
+  'GET /health': (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ name: 'SAHIIX.AI Estate API', version: '1.0.0' }));
+    res.end(JSON.stringify({ status: 'ok', name: 'SAHIIX.AI Estate API', version: '1.0.0', timestamp: new Date().toISOString() }));
   },
 
   'GET /properties': (req, res) => {

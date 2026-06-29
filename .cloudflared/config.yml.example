@@ -1,0 +1,15 @@
+# Example named Cloudflare tunnel config
+# 1. Run: cloudflared tunnel create sahiix-estate
+# 2. Copy the generated tunnel UUID to <TUNNEL_ID> below
+# 3. Add a CNAME record in Cloudflare DNS: sahiix-estate.yourdomain.com -> <TUNNEL_ID>.cfargotunnel.com
+# 4. Move this file to ~/.cloudflared/config.yml
+# 5. Run: cloudflared tunnel route dns <TUNNEL_ID> sahiix-estate.yourdomain.com
+# 6. Run: cloudflared tunnel run sahiix-estate
+
+tunnel: <TUNNEL_ID>
+credentials-file: /home/xx/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: sahiix-estate.yourdomain.com
+    service: http://localhost:3001
+  - service: http_status:404
