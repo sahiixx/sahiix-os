@@ -82,7 +82,7 @@ const routes = {
 
   'GET /health': (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', name: 'SAHIIX.AI Estate API', version: '1.0.0', timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ status: 'ok', name: 'SAHIIXX OS API', version: '1.0.0', timestamp: new Date().toISOString() }));
   },
 
   'GET /properties': (req, res) => {
