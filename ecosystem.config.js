@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'sahiix-estate-api',
+      name: 'sahiix-os-api',
       script: './server.js',
       instances: 1,
       exec_mode: 'fork',
@@ -10,9 +10,9 @@ module.exports = {
         PORT: 3001,
         HOST: '0.0.0.0'
       },
-      log_file: '/tmp/sahiix-estate-api.log',
-      out_file: '/tmp/sahiix-estate-api-out.log',
-      error_file: '/tmp/sahiix-estate-api-error.log',
+      log_file: '/tmp/sahiix-os-api.log',
+      out_file: '/tmp/sahiix-os-api-out.log',
+      error_file: '/tmp/sahiix-os-api-error.log',
       merge_logs: true,
       time: true,
       autorestart: true,
@@ -24,7 +24,7 @@ module.exports = {
       listen_timeout: 10000
     },
     {
-      name: 'sahiix-estate-whatsapp',
+      name: 'sahiix-os-whatsapp',
       script: './whatsapp-bot.js',
       instances: 1,
       exec_mode: 'fork',
@@ -33,9 +33,9 @@ module.exports = {
         PORT: 3002,
         HOST: '0.0.0.0'
       },
-      log_file: '/tmp/sahiix-estate-whatsapp.log',
-      out_file: '/tmp/sahiix-estate-whatsapp-out.log',
-      error_file: '/tmp/sahiix-estate-whatsapp-error.log',
+      log_file: '/tmp/sahiix-os-whatsapp.log',
+      out_file: '/tmp/sahiix-os-whatsapp-out.log',
+      error_file: '/tmp/sahiix-os-whatsapp-error.log',
       merge_logs: true,
       time: true,
       autorestart: true,

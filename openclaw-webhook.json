@@ -1,0 +1,18 @@
+{
+  "webhook": {
+    "name": "SAHIIX Estate Bot",
+    "url": "http://localhost:3002/webhook",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "events": ["message"],
+    "enabled": true
+  },
+  "test_commands": {
+    "help": "Show available commands",
+    "listings": "View all properties",
+    "dashboard": "Lead pipeline stats",
+    "inquiry|Name|Phone|Property|Notes": "Submit a lead"
+  }
+}

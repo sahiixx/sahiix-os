@@ -157,12 +157,16 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Static files
-  if (req.method === 'GET' && cleanUrl === '/') {
-    serveFile(res, path.join(__dirname, 'dashboard.html'), 'text/html');
+  if (req.method === 'GET' && (cleanUrl === '/' || cleanUrl === '/dashboard.html')) {
+    serveFile(res, path.join(__dirname, 'dashboard-v2.html'), 'text/html');
     return;
   }
-  if (req.method === 'GET' && cleanUrl === '/dashboard.html') {
-    serveFile(res, path.join(__dirname, 'dashboard.html'), 'text/html');
+  if (req.method === 'GET' && cleanUrl === '/manifest.json') {
+    serveFile(res, path.join(__dirname, 'manifest.json'), 'application/json');
+    return;
+  }
+  if (req.method === 'GET' && cleanUrl === '/sw.js') {
+    serveFile(res, path.join(__dirname, 'sw.js'), 'application/javascript');
     return;
   }
 

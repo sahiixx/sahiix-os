@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAHIIXX OS — AI Real Estate Operating System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: { 50: '#f0fdf4', 100: '#dcfce7', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 900: '#14532d' },
+            dark: { 900: '#0B0F19', 800: '#111827', 700: '#1F2937', 600: '#374151' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); }
+    .gradient-text { background: linear-gradient(135deg, #22c55e 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .pulse-dot { animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .slide-in { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .voice-wave { animation: voiceWave 1.2s ease-in-out infinite; }
+    @keyframes voiceWave { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+  </style>
+</head>
+<body class="bg-dark-900 text-white">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const Icon = ({ name, size = 20, className = '' }) => {
+      const iconEl = useRef(null);
+      useEffect(() => {
+        if (iconEl.current && window.lucide && window.lucide.icons[name]) {
+          iconEl.current.innerHTML = window.lucide.icons[name].toSvg({ size, class: className });
+        }
+      }, [name, size, className]);
+      return <span ref={iconEl} className={`inline-flex items-center justify-center ${className}`} />;
+    };
+
+    const API_BASE = '';
+    const OLLAMA_URL = '/ollama-proxy';
+
+    const SYSTEM_PROMPT = `You are SAHIIXX, a Dubai real estate AI assistant built by sahiixx. You help brokers manage leads, properties, and viewings. You have access to the broker's dashboard data. Be concise, professional, and helpful. Always answer in English unless asked otherwise. You can: summarize leads, suggest properties, explain the pipeline, and guide the broker through their day. Never share that you are an AI model; represent yourself as SAHIIXX OS.`;
+
+    const StatusBadge = ({ status }) => {
+      const styles = {
+        new: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        contacted: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+        qualified: 'bg-brand-500/20 text-brand-400 border-brand-500/30',
+        closed: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+        interested: 'bg-brand-500/20 text-brand-400 border-brand-500/30',
+        callback: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+        not_interested: 'bg-red-500/20 text-red-400 border-red-500/30',
+        meeting_booked: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+        sent: 'bg-blue-500/20 text-blue-400',
+        delivered: 'bg-yellow-500/20 text-yellow-400',
+        read: 'bg-brand-500/20 text-brand-400',
+      };
+      return <span className={`px-2 py-1 rounded-full text-xs font-medium border ${styles[status] || styles.new}`}>{status.replace(/_/g, ' ').toUpperCase()}</span>;
+    };
+
+    const StatCard = ({ title, value, change, icon, color }) => (
+      <div className="glass rounded-xl p-6 border border-dark-600">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-gray-400 text-sm font-medium">{title}</span>
+          <div className={`p-2 rounded-lg ${color}`}><Icon name={icon} size={20} /></div>
+        </div>
+        <div className="text-3xl font-bold text-white mb-1">{value}</div>
+        <div className="text-brand-400 text-sm font-medium">{change}</div>
+      </div>
+    );
+
+    const PipelineCard = ({ stage, count, color, icon }) => (
+      <div className="glass rounded-xl p-5 border border-dark-600 text-center">
+        <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mx-auto mb-3`}><Icon name={icon} size={20} /></div>
+        <div className="text-2xl font-bold text-white mb-1">{count}</div>
+        <div className="text-gray-400 text-xs uppercase tracking-wider">{stage}</div>
+      </div>
+    );
+
+    const VoiceAssistant = ({ onCommand }) => {
+      const [isOpen, setIsOpen] = useState(false);
+      const [isListening, setIsListening] = useState(false);
+      const [isSpeaking, setIsSpeaking] = useState(false);
+      const [messages, setMessages] = useState([{ role: 'assistant', text: 'Hello, I am SAHIIXX. Tap the mic and ask me about your leads, properties, or pipeline.' }]);
+      const [transcript, setTranscript] = useState('');
+      const recognitionRef = useRef(null);
+      const messagesEndRef = useRef(null);
+
+      useEffect(() => {
+        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognitionRef.current = new SpeechRecognition();
+          recognitionRef.current.continuous = false;
+          recognitionRef.current.interimResults = false;
+          recognitionRef.current.lang = 'en-US';
+          recognitionRef.current.onstart = () => setIsListening(true);
+          recognitionRef.current.onend = () => setIsListening(false);
+          recognitionRef.current.onresult = (e) => {
+            const text = e.results[0][0].transcript;
+            setTranscript(text);
+            handleUserMessage(text);
+          };
+        }
+      }, []);
+
+      useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+      const handleUserMessage = async (text) => {
+        const userMsg = { role: 'user', text };
+        setMessages(prev => [...prev, userMsg]);
+
+        const lower = text.toLowerCase();
+        if (lower.includes('dashboard') || lower.includes('overview')) onCommand('dashboard');
+        else if (lower.includes('voice') || lower.includes('call')) onCommand('voice');
+        else if (lower.includes('whatsapp') || lower.includes('message')) onCommand('whatsapp');
+        else if (lower.includes('property') || lower.includes('properties')) onCommand('properties');
+        else if (lower.includes('lead') || lower.includes('leads')) onCommand('leads');
+
+        try {
+          const res = await fetch(OLLAMA_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'llama3.2:1b',
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                ...messages.slice(-6).map(m => ({ role: m.role, content: m.text })),
+                { role: 'user', content: text }
+              ],
+              stream: false
+            })
+          });
+          const data = await res.json();
+          const reply = data.message?.content || 'I am processing that. Please check your dashboard.';
+          setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+          speak(reply);
+        } catch (err) {
+          const fallback = 'SAHIIXX voice core is warming up. Try again in a moment.';
+          setMessages(prev => [...prev, { role: 'assistant', text: fallback }]);
+          speak(fallback);
+        }
+      };
+
+      const speak = (text) => {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = 1;
+          u.pitch = 1;
+          u.onstart = () => setIsSpeaking(true);
+          u.onend = () => setIsSpeaking(false);
+          window.speechSynthesis.speak(u);
+        }
+      };
+
+      const toggleListen = () => {
+        if (!recognitionRef.current) {
+          setMessages(prev => [...prev, { role: 'assistant', text: 'Voice recognition is not supported in this browser.' }]);
+          return;
+        }
+        if (isListening) { recognitionRef.current.stop(); }
+        else { recognitionRef.current.start(); }
+      };
+
+      const sendText = (e) => {
+        e.preventDefault();
+        if (!transcript.trim()) return;
+        handleUserMessage(transcript);
+        setTranscript('');
+      };
+
+      return (
+        <>
+          <button onClick={() => setIsOpen(true)} className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-brand-600 hover:bg-brand-500 shadow-2xl flex items-center justify-center z-50 transition transform hover:scale-110">
+            <Icon name="mic" size={28} />
+          </button>
+
+          {isOpen && (
+            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setIsOpen(false)}></div>
+              <div className="relative w-full max-w-md glass rounded-2xl border border-dark-600 overflow-hidden shadow-2xl slide-in">
+                <div className="p-4 border-b border-dark-600 flex items-center justify-between bg-brand-600/10">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center ${isListening ? 'pulse-dot' : ''}`}>
+                      <Icon name="bot" size={20} />
+                    </div>
+                    <div>
+                      <div className="font-bold">SAHIIXX Voice Core</div>
+                      <div className="text-xs text-gray-400">Custom AI · Local Ollama · No external APIs</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white"><Icon name="x" size={20} /></button>
+                </div>
+
+                <div className="h-80 overflow-y-auto p-4 space-y-3">
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm ${m.role === 'user' ? 'bg-brand-600 text-white rounded-br-none' : 'bg-dark-700 text-gray-200 rounded-bl-none'}`}>
+                        {m.text}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <div className="p-4 border-t border-dark-600">
+                  {isListening && (
+                    <div className="flex items-center justify-center gap-1 h-10 mb-3">
+                      {[1,2,3,4,5].map(i => <div key={i} className="w-1 bg-brand-500 rounded-full voice-wave" style={{ animationDelay: `${i * 0.1}s`, height: '20px' }}></div>)}
+                    </div>
+                  )}
+                  <form onSubmit={sendText} className="flex gap-2">
+                    <input
+                      value={transcript}
+                      onChange={e => setTranscript(e.target.value)}
+                      placeholder="Ask SAHIIXX..."
+                      className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
+                    />
+                    <button type="button" onClick={toggleListen} className={`p-3 rounded-xl transition ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-dark-700 hover:bg-dark-600'}`}>
+                      <Icon name={isListening ? 'square' : 'mic'} size={20} />
+                    </button>
+                    <button type="submit" className="bg-brand-600 hover:bg-brand-500 p-3 rounded-xl">
+                      <Icon name="send" size={20} />
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    };
+
+    const mockVoiceCalls = [
+      { id: 1, name: 'Ahmed Al-Rashid', phone: '+971 50 123 4567', status: 'interested', duration: '2:34', transcript: 'Interested in Palm Jumeirah villa, budget 12M AED.', time: '2 min ago', disposition: 'Hot Lead' },
+      { id: 2, name: 'Sarah Johnson', phone: '+971 55 987 6543', status: 'callback', duration: '1:45', transcript: 'Requested callback tomorrow 2 PM.', time: '15 min ago', disposition: 'Warm' },
+      { id: 3, name: 'Mohammed Khan', phone: '+971 52 456 7890', status: 'not_interested', duration: '0:52', transcript: 'Not looking right now.', time: '32 min ago', disposition: 'Cold' },
+      { id: 4, name: 'Fatima Hassan', phone: '+971 54 321 0987', status: 'meeting_booked', duration: '3:12', transcript: 'Booked viewing for Downtown apartment on Thursday.', time: '1 hour ago', disposition: 'Qualified' },
+    ];
+
+    const mockWhatsApp = [
+      { id: 1, name: 'Ahmed Al-Rashid', phone: '+971 50 123 4567', message: 'Thank you for your interest! Here are the details for Palm Jumeirah Villa.', status: 'sent', time: '2 min ago', type: 'outbound' },
+      { id: 2, name: 'Sarah Johnson', phone: '+971 55 987 6543', message: 'Can we reschedule to 4 PM instead?', status: 'read', time: '5 min ago', type: 'inbound' },
+      { id: 3, name: 'Mohammed Khan', phone: '+971 52 456 7890', message: 'Thanks, will reach out when ready.', status: 'delivered', time: '30 min ago', type: 'outbound' },
+      { id: 4, name: 'Fatima Hassan', phone: '+971 54 321 0987', message: 'Confirmed for Thursday 3 PM viewing.', status: 'read', time: '1 hour ago', type: 'outbound' },
+    ];
+
+    const LandingPage = ({ onEnter }) => (
+      <div className="min-h-screen">
+        <nav className="fixed top-0 w-full glass border-b border-dark-600 z-50">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="text-2xl font-bold gradient-text">SAHIIXX</div>
+            <button onClick={onEnter} className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded-lg font-medium transition">Enter OS</button>
+          </div>
+        </nav>
+
+        <section className="pt-32 pb-20 px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-8">
+              <span className="w-2 h-2 rounded-full bg-brand-500 pulse-dot"></span>
+              Custom AI · Self-Hosted · Real-Time
+            </div>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              The <span className="gradient-text">AI Operating System</span><br />for Dubai Real Estate
+            </h1>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
+              Built from scratch for sahiixx. Voice AI, WhatsApp follow-up, lead qualification, and pipeline intelligence — all in one autonomous loop.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button onClick={onEnter} className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition">Launch SAHIIXX OS</button>
+              <a href="https://github.com/sahiixx" target="_blank" className="bg-dark-700 hover:bg-dark-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition border border-dark-600">View on GitHub</a>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 px-6 border-t border-dark-700">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="glass rounded-2xl p-8 border border-dark-600">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-6"><Icon name="mic" size={24} /></div>
+                <h3 className="text-xl font-bold mb-3">Custom Voice AI</h3>
+                <p className="text-gray-400">Self-hosted browser voice assistant using Web Speech API and local Ollama LLM. No Retell. No Twilio.</p>
+              </div>
+              <div className="glass rounded-2xl p-8 border border-dark-600">
+                <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mb-6"><Icon name="message-circle" size={24} /></div>
+                <h3 className="text-xl font-bold mb-3">WhatsApp Follow-Up</h3>
+                <p className="text-gray-400">Automated message sequences triggered by AI call outcomes and lead behavior.</p>
+              </div>
+              <div className="glass rounded-2xl p-8 border border-dark-600">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-6"><Icon name="bar-chart-3" size={24} /></div>
+                <h3 className="text-xl font-bold mb-3">Pipeline Intelligence</h3>
+                <p className="text-gray-400">Real-time lead scoring, property matching, and broker handoff in one dashboard.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+
+    const Dashboard = () => {
+      const [stats, setStats] = useState({ total_properties: 0, pipeline: { new: 0, contacted: 0, qualified: 0, closed: 0 } });
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        fetch(`${API_BASE}/dashboard`)
+          .then(r => r.json())
+          .then(d => { setStats(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      if (loading) return <div className="p-8 text-center text-gray-400">Loading dashboard...</div>;
+
+      return (
+        <div className="p-6 slide-in">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-1">Dashboard</h2>
+            <p className="text-gray-400">Real-time overview of your AI-driven real estate pipeline</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard title="Total Properties" value={stats.total_properties} change="Live inventory" icon="building" color="bg-blue-500/20" />
+            <StatCard title="Voice Calls Today" value="48" change="Custom AI active" icon="phone-call" color="bg-brand-500/20" />
+            <StatCard title="WhatsApp Sent" value="127" change="Follow-up loop" icon="message-circle" color="bg-yellow-500/20" />
+            <StatCard title="Meetings Booked" value="8" change="+5 today" icon="calendar-check" color="bg-purple-500/20" />
+          </div>
+          <h3 className="text-lg font-semibold mb-4">Lead Pipeline</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <PipelineCard stage="New" count={stats.pipeline.new || 0} color="bg-blue-500/20" icon="inbox" />
+            <PipelineCard stage="Contacted" count={stats.pipeline.contacted || 0} color="bg-yellow-500/20" icon="phone" />
+            <PipelineCard stage="Qualified" count={stats.pipeline.qualified || 0} color="bg-brand-500/20" icon="target" />
+            <PipelineCard stage="Closed" count={stats.pipeline.closed || 0} color="bg-purple-500/20" icon="check-circle" />
+          </div>
+        </div>
+      );
+    };
+
+    const VoiceCampaign = () => (
+      <div className="p-6 slide-in">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-1">Voice Campaign</h2>
+          <p className="text-gray-400">Custom AI voice calls — built in-house with Web Speech + Ollama</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <StatCard title="Calls Made" value="48" change="Today" icon="phone-call" color="bg-blue-500/20" />
+          <StatCard title="Answered" value="31" change="65% answer rate" icon="headphones" color="bg-brand-500/20" />
+          <StatCard title="Interested" value="12" change="25% conversion" icon="thumbs-up" color="bg-yellow-500/20" />
+          <StatCard title="Meetings" value="8" change="Booked today" icon="calendar" color="bg-purple-500/20" />
+        </div>
+        <div className="glass rounded-xl border border-dark-600 overflow-hidden">
+          <div className="p-4 border-b border-dark-600 flex items-center justify-between">
+            <h3 className="font-semibold">Recent Calls</h3>
+            <span className="text-xs text-gray-400">Simulated outcomes · Real voice AI via assistant</span>
+          </div>
+          <table className="w-full">
+            <thead className="bg-dark-800">
+              <tr><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Lead</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Disposition</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Duration</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Summary</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Time</th></tr>
+            </thead>
+            <tbody>
+              {mockVoiceCalls.map(call => (
+                <tr key={call.id} className="border-b border-dark-700 hover:bg-dark-800/50">
+                  <td className="p-4"><div className="font-medium">{call.name}</div><div className="text-sm text-gray-400">{call.phone}</div></td>
+                  <td className="p-4"><StatusBadge status={call.status} /></td>
+                  <td className="p-4 text-gray-300">{call.duration}</td>
+                  <td className="p-4 text-gray-300 max-w-md">{call.transcript}</td>
+                  <td className="p-4 text-sm text-gray-400">{call.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+
+    const WhatsAppView = () => (
+      <div className="p-6 slide-in">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-1">WhatsApp Center</h2>
+          <p className="text-gray-400">Automated follow-up sequences</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <StatCard title="Messages Sent" value="127" change="Today" icon="send" color="bg-blue-500/20" />
+          <StatCard title="Delivered" value="118" change="93% delivery rate" icon="check" color="bg-brand-500/20" />
+          <StatCard title="Replies" value="23" change="18% reply rate" icon="message-circle" color="bg-yellow-500/20" />
+        </div>
+        <div className="glass rounded-xl border border-dark-600 overflow-hidden">
+          <div className="p-4 border-b border-dark-600"><h3 className="font-semibold">Conversations</h3></div>
+          <div className="divide-y divide-dark-700">
+            {mockWhatsApp.map(msg => (
+              <div key={msg.id} className="p-4 hover:bg-dark-800/50">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${msg.type === 'inbound' ? 'bg-blue-500/20' : 'bg-green-500/20'}`}><Icon name={msg.type === 'inbound' ? 'message-square' : 'send'} size={16} /></div>
+                    <div>
+                      <div className="font-medium">{msg.name}</div>
+                      <div className="text-sm text-gray-400">{msg.phone}</div>
+                      <div className="mt-2 text-gray-200">{msg.message}</div>
+                    </div>
+                  </div>
+                  <div className="text-right"><StatusBadge status={msg.status} /><div className="text-xs text-gray-500 mt-1">{msg.time}</div></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    const PropertiesView = () => {
+      const [properties, setProperties] = useState([]);
+      const [loading, setLoading] = useState(true);
+      useEffect(() => {
+        fetch(`${API_BASE}/properties`).then(r => r.json()).then(data => { setProperties(data); setLoading(false); }).catch(() => setLoading(false));
+      }, []);
+      if (loading) return <div className="p-8 text-center text-gray-400">Loading properties...</div>;
+      return (
+        <div className="p-6 slide-in">
+          <div className="mb-8"><h2 className="text-2xl font-bold mb-1">Properties</h2><p className="text-gray-400">Dubai real estate inventory</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {properties.map(p => (
+              <div key={p.id} className="glass rounded-xl border border-dark-600 overflow-hidden hover:border-brand-500/50 transition">
+                <div className="h-40 bg-gradient-to-br from-dark-700 to-dark-600 flex items-center justify-center"><Icon name="building-2" size={48} className="text-gray-600" /></div>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-lg">{p.title}</h3><StatusBadge status={p.status} /></div>
+                  <p className="text-gray-400 text-sm mb-4">{p.location}</p>
+                  <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
+                    <div className="bg-dark-800 rounded-lg p-2 text-center"><div className="font-semibold">{p.beds}</div><div className="text-xs text-gray-500">Beds</div></div>
+                    <div className="bg-dark-800 rounded-lg p-2 text-center"><div className="font-semibold">{p.baths}</div><div className="text-xs text-gray-500">Baths</div></div>
+                    <div className="bg-dark-800 rounded-lg p-2 text-center"><div className="font-semibold">{p.sqft}</div><div className="text-xs text-gray-500">Sqft</div></div>
+                  </div>
+                  <div className="text-2xl font-bold gradient-text">AED {p.price?.toLocaleString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const LeadsView = () => {
+      const [leads, setLeads] = useState([]);
+      const [loading, setLoading] = useState(true);
+      useEffect(() => {
+        fetch(`${API_BASE}/leads`).then(r => r.json()).then(data => { setLeads(data); setLoading(false); }).catch(() => setLoading(false));
+      }, []);
+      if (loading) return <div className="p-8 text-center text-gray-400">Loading leads...</div>;
+      return (
+        <div className="p-6 slide-in">
+          <div className="mb-8"><h2 className="text-2xl font-bold mb-1">Leads</h2><p className="text-gray-400">Qualified prospects and pipeline</p></div>
+          <div className="glass rounded-xl border border-dark-600 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-dark-800">
+                <tr><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Name</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Contact</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Property Interest</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Status</th><th className="text-left p-4 text-xs uppercase text-gray-400 font-medium">Notes</th></tr>
+              </thead>
+              <tbody>
+                {leads.map(lead => (
+                  <tr key={lead.id} className="border-b border-dark-700 hover:bg-dark-800/50">
+                    <td className="p-4 font-medium">{lead.name}</td>
+                    <td className="p-4 text-sm text-gray-400">{lead.phone}<br/>{lead.email}</td>
+                    <td className="p-4 text-sm text-gray-300">{lead.property_title || '—'}</td>
+                    <td className="p-4"><StatusBadge status={lead.status} /></td>
+                    <td className="p-4 text-sm text-gray-300 max-w-xs">{lead.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
+    const App = () => {
+      const [view, setView] = useState('landing');
+      const [activeTab, setActiveTab] = useState('dashboard');
+
+      if (view === 'landing') return <LandingPage onEnter={() => setView('app')} />;
+
+      const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+        { id: 'voice', label: 'Voice', icon: 'phone-call' },
+        { id: 'whatsapp', label: 'WhatsApp', icon: 'message-circle' },
+        { id: 'properties', label: 'Properties', icon: 'building' },
+        { id: 'leads', label: 'Leads', icon: 'users' },
+      ];
+
+      return (
+        <div className="min-h-screen flex flex-col md:flex-row">
+          <aside className="w-full md:w-64 glass border-b md:border-b-0 md:border-r border-dark-600 md:min-h-screen">
+            <div className="p-6">
+              <div className="text-2xl font-bold gradient-text mb-8">SAHIIXX</div>
+              <nav className="space-y-2">
+                {navItems.map(item => (
+                  <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition text-left ${activeTab === item.id ? 'bg-brand-600 text-white' : 'text-gray-400 hover:bg-dark-700 hover:text-white'}`}>
+                    <Icon name={item.icon} size={18} /><span className="font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="p-6 mt-auto border-t border-dark-600">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center"><Icon name="user" size={18} /></div>
+                <div><div className="font-medium text-sm">Broker Admin</div><div className="text-xs text-gray-400">Dubai Office</div></div>
+              </div>
+            </div>
+          </aside>
+
+          <main className="flex-1 min-h-screen overflow-auto">
+            <header className="glass border-b border-dark-600 px-6 py-4 flex items-center justify-between">
+              <h1 className="text-xl font-semibold capitalize">{activeTab}</h1>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm"><span className="w-2 h-2 rounded-full bg-brand-500 pulse-dot"></span>Live Demo</div>
+                <button onClick={() => setView('landing')} className="text-gray-400 hover:text-white"><Icon name="log-out" size={20} /></button>
+              </div>
+            </header>
+
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'voice' && <VoiceCampaign />}
+            {activeTab === 'whatsapp' && <WhatsAppView />}
+            {activeTab === 'properties' && <PropertiesView />}
+            {activeTab === 'leads' && <LeadsView />}
+
+            <VoiceAssistant onCommand={cmd => { setActiveTab(cmd); }} />
+          </main>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
