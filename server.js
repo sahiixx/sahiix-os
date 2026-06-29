@@ -1,12 +1,15 @@
 const http = require('http');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const PORT = 3001;
-const db = new sqlite3.Database(':memory:');
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
+const DB_PATH = path.join(__dirname, 'estate.db');
+const db = new sqlite3.Database(DB_PATH);
 
 db.serialize(() => {
-  db.run(`CREATE TABLE properties (
+  db.run(`CREATE TABLE IF NOT EXISTS properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     location TEXT NOT NULL,
@@ -18,7 +21,7 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  db.run(`CREATE TABLE leads (
+  db.run(`CREATE TABLE IF NOT EXISTS leads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     phone TEXT,
@@ -30,11 +33,21 @@ db.serialize(() => {
     FOREIGN KEY (property_id) REFERENCES properties(id)
   )`);
 
-  db.run(`INSERT INTO properties (title, location, price, beds, baths, sqft) VALUES
-    ('Palm Jumeirah Villa', 'Palm Jumeirah', 12500000, 5, 6, 8500),
-    ('Downtown Apartment', 'Downtown Dubai', 3200000, 2, 3, 1800),
-    ('Dubai Marina Penthouse', 'Dubai Marina', 8900000, 4, 5, 4200),
-    ('JVC Studio', 'Jumeirah Village', 650000, 1, 1, 550)`);
+  // Seed only if empty
+  db.get('SELECT COUNT(*) as count FROM properties', (err, row) => {
+    if (!err && row.count === 0) {
+      db.run(`INSERT INTO properties (title, location, price, beds, baths, sqft) VALUES
+        ('Palm Jumeirah Villa', 'Palm Jumeirah', 12500000, 5, 6, 8500),
+        ('Downtown Apartment', 'Downtown Dubai', 3200000, 2, 3, 1800),
+        ('Costa Brava Luxury Townhouse', 'Damac Lagoons (Costa Brava)', 2900000, 4, 4, 2500),
+        ('Costa Brava Premium Villa', 'Damac Lagoons (Costa Brava)', 5800000, 5, 6, 4200),
+        ('Dubai Marina Penthouse', 'Dubai Marina', 8900000, 4, 5, 4200),
+        ('JVC Studio', 'Jumeirah Village', 650000, 1, 1, 550)`);
+      console.log('Seeded 6 default properties');
+    } else {
+      console.log(`Database loaded: ${row?.count || 0} properties found`);
+    }
+  });
 });
 
 const parseBody = (req) => new Promise((resolve) => {
@@ -42,6 +55,24 @@ const parseBody = (req) => new Promise((resolve) => {
   req.on('data', chunk => body += chunk);
   req.on('end', () => resolve(JSON.parse(body || '{}')));
 });
+
+const setCORS = (res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+};
+
+const serveFile = (res, filePath, contentType) => {
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'File not found' }));
+    } else {
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(data);
+    }
+  });
+};
 
 const routes = {
   'GET /': (req, res) => {
@@ -111,10 +142,48 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const key = `${req.method} ${req.url.split('/').slice(0, 3).join('/')}`;
-  const exactKey = `${req.method} ${req.url}`;
-  
-  const handler = routes[exactKey] || routes[key];
+  setCORS(res);
+  const cleanUrl = req.url.split('?')[0];
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // Static files
+  if (req.method === 'GET' && cleanUrl === '/') {
+    serveFile(res, path.join(__dirname, 'dashboard.html'), 'text/html');
+    return;
+  }
+  if (req.method === 'GET' && cleanUrl === '/dashboard.html') {
+    serveFile(res, path.join(__dirname, 'dashboard.html'), 'text/html');
+    return;
+  }
+
+  const exactKey = `${req.method} ${cleanUrl}`;
+
+  // Try exact match first
+  let handler = routes[exactKey];
+
+  // Fallback: match parameterized routes like PUT /leads/:id
+  if (!handler) {
+    const parts = cleanUrl.split('/');
+    for (const routeKey of Object.keys(routes)) {
+      const [routeMethod, ...routePathParts] = routeKey.split(' ');
+      const routePath = routePathParts.join(' ');
+      if (routeMethod !== req.method) continue;
+      const rParts = routePath.split('/');
+      if (rParts.length !== parts.length) continue;
+      let match = true;
+      for (let i = 0; i < rParts.length; i++) {
+        if (rParts[i].startsWith(':')) continue;
+        if (rParts[i] !== parts[i]) { match = false; break; }
+      }
+      if (match) { handler = routes[routeKey]; break; }
+    }
+  }
+
   if (handler) {
     handler(req, res);
   } else {
@@ -123,9 +192,12 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`SAHIIX.AI Estate API running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`SAHIIX.AI Estate API running at http://${HOST}:${PORT}`);
+  console.log('Dashboard: http://' + HOST + ':' + PORT + '/');
   console.log('Endpoints:');
+  console.log('  GET  /');
+  console.log('  GET  /dashboard.html');
   console.log('  GET  /properties');
   console.log('  POST /properties');
   console.log('  GET  /leads');
