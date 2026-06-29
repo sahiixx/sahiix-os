@@ -158,7 +158,7 @@ const server = http.createServer(async (req, res) => {
 
   // Static files
   if (req.method === 'GET' && (cleanUrl === '/' || cleanUrl === '/dashboard.html')) {
-    serveFile(res, path.join(__dirname, 'dashboard-v2.html'), 'text/html');
+    serveFile(res, path.join(__dirname, 'dashboard-v3.html'), 'text/html');
     return;
   }
   if (req.method === 'GET' && cleanUrl === '/manifest.json') {
@@ -167,6 +167,25 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && cleanUrl === '/sw.js') {
     serveFile(res, path.join(__dirname, 'sw.js'), 'application/javascript');
+    return;
+  }
+
+  // Ollama proxy for custom voice AI
+  if (req.method === 'POST' && cleanUrl === '/ollama-proxy') {
+    const body = await parseBody(req);
+    try {
+      const result = await fetch('http://127.0.0.1:11434/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await result.json();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ollama not available', detail: err.message }));
+    }
     return;
   }
 
@@ -202,7 +221,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`SAHIIX.AI Estate API running at http://${HOST}:${PORT}`);
+  console.log(`SAHIIXX OS API running at http://${HOST}:${PORT}`);
   console.log('Dashboard: http://' + HOST + ':' + PORT + '/');
   console.log('Endpoints:');
   console.log('  GET  /');
@@ -213,4 +232,5 @@ server.listen(PORT, HOST, () => {
   console.log('  POST /leads');
   console.log('  PUT  /leads/:id');
   console.log('  GET  /dashboard');
+  console.log('  POST /ollama-proxy');
 });
