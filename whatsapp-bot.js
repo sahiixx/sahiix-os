@@ -168,16 +168,50 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+  } else if (req.method === 'POST' && req.url === '/outbound') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const to = data.to || data.phone;
+        const message = data.message || data.text || '';
+        // Default dry_run=true unless explicitly false
+        const isDry = !(data.dry_run === false || data.dryRun === false);
+        if (!to || !message) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'to and message required' }));
+          return;
+        }
+        if (isDry) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            status: 'dry_run',
+            to,
+            chatId: toJid(to),
+            messagePreview: String(message).slice(0, 200),
+            sent: false
+          }));
+          return;
+        }
+        const result = await sendWhatsApp(to, message);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: result ? 'sent' : 'failed', to, result, sent: !!result }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
   } else if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ name: 'SAHIIX.AI Estate WhatsApp Bot', status: 'running' }));
+    res.end(JSON.stringify({ name: 'SAHIIX.AI Estate WhatsApp Bot', status: 'running', endpoints: ['/', '/webhook', '/outbound'] }));
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`SAHIIX.AI WhatsApp Bot running at http://localhost:${PORT}`);
   console.log('Webhook endpoint: POST /webhook');
   console.log('Connect this to OpenClaw gateway for WhatsApp integration');
