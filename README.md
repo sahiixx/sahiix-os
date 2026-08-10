@@ -1,37 +1,103 @@
-# SAHIIX.AI Estate Dashboard
+# sahiix-os
+
+![Node](https://img.shields.io/badge/node-20+-green)
 
 Dubai Real Estate Lead Management System
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Model Routing](#model-routing)
+- [Project Layout](#project-layout)
+- [Development](#development)
+- [Related Repositories](#related-repositories)
+
+## Overview
+
+Dubai Real Estate Lead Management System
+
+| | |
+|---|---|
+| **Stack** | node |
+| **Frameworks** | — |
+| **Tests** | none detected |
+| **Commits** | 2 |
+| **Last activity** | 2026-08-10 |
+| **Visibility** | public |
+
 ## Quick Start
+
+### Install
+
+```bash
+npm install
+```
+
+### Run
 
 ```bash
 npm start
+python server.js
 ```
 
-Open `dashboard.html` in browser. API runs on `http://localhost:3001`.
+## Model Routing
 
-## API Endpoints
+Agent work in this repo routes through Azure AI Foundry. See [`AGENTS.md`](./AGENTS.md)
+for the full contract.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /properties | List all properties |
-| POST | /properties | Add property |
-| GET | /leads | List all leads |
-| POST | /leads | Add lead |
-| PUT | /leads/:id | Update lead status |
-| GET | /dashboard | Pipeline stats |
+| Purpose | Deployment | Endpoint |
+|---|---|---|
+| Default / general | `gpt-5.6-sol` | `/openai/v1/chat/completions` |
+| Deep reasoning | `claude-opus-5` | `/openai/v1/responses` **only** |
+| Embeddings | `text-embedding-3-small` | `/openai/v1/embeddings` |
 
-## Sample Data
+```bash
+export AZURE_FOUNDRY_API_KEY=...        # never commit this
+export AZURE_FOUNDRY_BASE_URL=https://<resource>.openai.azure.com/openai/v1
+```
 
-- 4 Dubai properties (Palm Jumeirah, Downtown, Marina, JVC)
-- Lead pipeline: new → contacted → qualified → closed
+> **Gotcha:** Claude deployments on Azure return `404 api_not_supported` on
+> `/chat/completions`. They answer **only** via the Responses API.
 
-## Architecture
+## Project Layout
 
 ```
-Dashboard (HTML/JS)
-    ↓ REST API
-Node.js Backend (Express)
-    ↓ SQLite
-Property & Lead Database
+AGENTS.md
+LICENSE
+README.md
+dashboard-v2.html
+dashboard-v3.html
+dashboard.html
+deploy.sh
+ecosystem.config.js
+frontend/
+manifest.json
+openclaw-webhook.json
+package-lock.json
+package.json
+server.js
 ```
+
+## Development
+
+```bash
+# lint / format before committing
+npm run lint
+
+# run the CI check locally
+gh workflow run hermes-azure-check.yml
+```
+
+Secrets live in environment variables and CI secrets — never in tracked files.
+
+## Related Repositories
+
+Part of a 84-repository workspace sharing one agentic contract:
+
+- **[agentic-harness](https://github.com/sahiixx/agentic-harness)** — patterns, contracts, and reference implementations
+- `AGENTS.md` in every repo pins identical model routing
+
+---
+
+<sub>README maintained by the agentic harness · last regenerated 2026-08-10</sub>
