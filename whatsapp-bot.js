@@ -1,8 +1,10 @@
 const http = require('http');
 
-const ESTATE_API = 'http://localhost:3001';
-const BRIDGE_API = 'http://127.0.0.1:18789';
-const PORT = 3002;
+const ESTATE_API = process.env.ESTATE_API || 'http://localhost:3001';
+const BRIDGE_API = process.env.BRIDGE_API || 'http://127.0.0.1:18789';
+const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN;
+const PORT = process.env.PORT || 3002;
+const HOST = process.env.HOST || '0.0.0.0';
 
 function fetchJSON(url, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -36,6 +38,9 @@ function toJid(phone) {
 }
 
 async function sendWhatsApp(to, message) {
+  if (!BRIDGE_TOKEN) {
+    throw new Error('BRIDGE_TOKEN is required to send WhatsApp messages');
+  }
   const chatId = toJid(to);
   console.log(`[sendWhatsApp] to=${to} chatId=${chatId} messageLength=${message.length}`);
   try {
@@ -43,7 +48,7 @@ async function sendWhatsApp(to, message) {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer 6467aa06c68e76e51622ea4d7996bbb62e73d06c9876937d'
+        'Authorization': `Bearer ${BRIDGE_TOKEN}`
       },
       body: JSON.stringify({ chatId, message })
     });
@@ -211,7 +216,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, HOST, () => {
   console.log(`SAHIIX.AI WhatsApp Bot running at http://localhost:${PORT}`);
   console.log('Webhook endpoint: POST /webhook');
   console.log('Connect this to OpenClaw gateway for WhatsApp integration');
