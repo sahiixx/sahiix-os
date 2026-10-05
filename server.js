@@ -50,11 +50,30 @@ db.serialize(() => {
   });
 });
 
-const parseBody = (req) => new Promise((resolve) => {
+const parseBody = (req) => new Promise((resolve, reject) => {
   let body = '';
   req.on('data', chunk => body += chunk);
-  req.on('end', () => resolve(JSON.parse(body || '{}')));
+  req.on('error', reject);
+  req.on('aborted', () => reject(new Error('Request aborted')));
+  req.on('end', () => {
+    try {
+      const parsed = JSON.parse(body || '{}');
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Expected a JSON object');
+      }
+      resolve(parsed);
+    } catch (err) {
+      const error = new Error('Request body must be a valid JSON object');
+      error.statusCode = 400;
+      reject(error);
+    }
+  });
 });
+
+const sendError = (res, statusCode, message) => {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: message }));
+};
 
 const setCORS = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -87,6 +106,7 @@ const routes = {
 
   'GET /properties': (req, res) => {
     db.all('SELECT * FROM properties ORDER BY created_at DESC', (err, rows) => {
+      if (err) return sendError(res, 500, 'Database operation failed');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(rows));
     });
@@ -97,6 +117,7 @@ const routes = {
     db.run('INSERT INTO properties (title, location, price, beds, baths, sqft) VALUES (?, ?, ?, ?, ?, ?)',
       [body.title, body.location, body.price, body.beds, body.baths, body.sqft],
       function(err) {
+        if (err) return sendError(res, 500, 'Database operation failed');
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ id: this.lastID, ...body }));
       });
@@ -104,6 +125,7 @@ const routes = {
 
   'GET /leads': (req, res) => {
     db.all(`SELECT l.*, p.title as property_title FROM leads l LEFT JOIN properties p ON l.property_id = p.id ORDER BY l.created_at DESC`, (err, rows) => {
+      if (err) return sendError(res, 500, 'Database operation failed');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(rows));
     });
@@ -114,6 +136,7 @@ const routes = {
     db.run('INSERT INTO leads (name, phone, email, property_id, notes) VALUES (?, ?, ?, ?, ?)',
       [body.name, body.phone, body.email, body.property_id, body.notes],
       function(err) {
+        if (err) return sendError(res, 500, 'Database operation failed');
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ id: this.lastID, ...body }));
       });
@@ -125,6 +148,7 @@ const routes = {
     db.run('UPDATE leads SET status = ?, notes = ? WHERE id = ?',
       [body.status, body.notes, id],
       function(err) {
+        if (err) return sendError(res, 500, 'Database operation failed');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ updated: this.changes }));
       });
@@ -132,7 +156,9 @@ const routes = {
 
   'GET /dashboard': (req, res) => {
     db.all(`SELECT status, COUNT(*) as count FROM leads GROUP BY status`, (err, stats) => {
+      if (err) return sendError(res, 500, 'Database operation failed');
       db.all(`SELECT COUNT(*) as total FROM properties`, (err, propCount) => {
+        if (err) return sendError(res, 500, 'Database operation failed');
         const dashboard = {
           lead_stats: stats,
           total_properties: propCount[0]?.total || 0,
@@ -146,7 +172,7 @@ const routes = {
   }
 };
 
-const server = http.createServer(async (req, res) => {
+const handleRequest = async (req, res) => {
   setCORS(res);
   const cleanUrl = req.url.split('?')[0];
 
@@ -213,11 +239,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (handler) {
-    handler(req, res);
+    await handler(req, res);
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
   }
+};
+
+const server = http.createServer((req, res) => {
+  handleRequest(req, res).catch(err => {
+    if (!res.destroyed) {
+      sendError(res, err.statusCode || 500, err.statusCode ? err.message : 'Internal server error');
+    }
+  });
 });
 
 server.listen(PORT, HOST, () => {

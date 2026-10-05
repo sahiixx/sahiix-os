@@ -8,6 +8,7 @@ Dubai Real Estate Lead Management System
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
+- [WhatsApp Bridge Configuration](#whatsapp-bridge-configuration)
 - [Model Routing](#model-routing)
 - [Project Layout](#project-layout)
 - [Development](#development)
@@ -21,7 +22,7 @@ Dubai Real Estate Lead Management System
 |---|---|
 | **Stack** | node |
 | **Frameworks** | — |
-| **Tests** | none detected |
+| **Tests** | Node.js built-in regression tests (`npm test`) |
 | **Commits** | 2 |
 | **Last activity** | 2026-08-10 |
 | **Visibility** | public |
@@ -30,15 +31,52 @@ Dubai Real Estate Lead Management System
 
 ### Install
 
+Requires Node.js 20.17 or newer (for the SQLite dependency).
+
 ```bash
-npm install
+npm ci
 ```
 
 ### Run
 
 ```bash
 npm start
-python server.js
+```
+
+The API and dashboard run at `http://localhost:3001`. `npm start` runs
+`node server.js`; use `PORT` and `HOST` to override the defaults (`3001` and
+`0.0.0.0`). The local SQLite database is `estate.db` in the repository directory.
+
+## WhatsApp Bridge Configuration
+
+Run the bot separately with `node whatsapp-bot.js`. It listens on port `3002`
+by default and uses an OpenClaw-compatible HTTP bridge with a `POST /send`
+endpoint accepting `{ "chatId": "...", "message": "..." }`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `BRIDGE_TOKEN` | None | Bearer token for bridge sends; supply through the process environment. |
+| `BRIDGE_API` | `http://127.0.0.1:18789` | HTTP bridge base URL, without a trailing slash. |
+| `ESTATE_API` | `http://localhost:3001` | HTTP estate API base URL, without a trailing slash. |
+| `PORT` | `3002` | Bot listening port (separate from the API process's `PORT`). |
+| `HOST` | `0.0.0.0` | Bot listening interface. |
+
+Set `BRIDGE_TOKEN` in the bot's environment before enabling sends. Explicit
+outbound sends and webhook replies return an error if it is missing; the bot
+can still start and process outbound dry-runs without it. No credential is
+stored in the source, and `.env` files are not loaded automatically.
+
+`POST /outbound` defaults to dry-run and returns a preview with `sent: false`,
+without contacting the bridge. Sending requires the JSON boolean
+`"dry_run": false` or `"dryRun": false`. `POST /webhook` replies to the supplied
+`from`/`sender` through the bridge and does not have a dry-run mode.
+
+Example dry-run (with the bot running):
+
+```bash
+curl -X POST http://localhost:3002/outbound \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"15555550123","message":"Preview only"}'
 ```
 
 ## Model Routing
@@ -77,17 +115,23 @@ openclaw-webhook.json
 package-lock.json
 package.json
 server.js
+test/
+whatsapp-bot.js
 ```
 
 ## Development
 
 ```bash
-# lint / format before committing
-npm run lint
+# regression tests (in-memory SQLite and a stubbed bridge; no real sends)
+npm test
 
-# run the CI check locally
-gh workflow run hermes-azure-check.yml
+# syntax checks
+node --check server.js
+node --check whatsapp-bot.js
 ```
+
+The `hermes-azure-check.yml` workflow checks the Azure endpoint using CI secrets;
+it is a live service check, not a local application test.
 
 Secrets live in environment variables and CI secrets — never in tracked files.
 
