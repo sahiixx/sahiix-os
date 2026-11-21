@@ -3,6 +3,7 @@ const http = require('http');
 const ESTATE_API = 'http://localhost:3001';
 const BRIDGE_API = 'http://127.0.0.1:18789';
 const PORT = 3002;
+const BRIDGE_TOKEN = process.env.OPENCLAW_BRIDGE_TOKEN || process.env.WHATSAPP_BRIDGE_TOKEN || '';
 
 function fetchJSON(url, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -41,9 +42,9 @@ async function sendWhatsApp(to, message) {
   try {
     const result = await fetchJSON(`${BRIDGE_API}/send`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer 6467aa06c68e76e51622ea4d7996bbb62e73d06c9876937d'
+        ...(BRIDGE_TOKEN ? { 'Authorization': `Bearer ${BRIDGE_TOKEN}` } : {})
       },
       body: JSON.stringify({ chatId, message })
     });
@@ -215,4 +216,7 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`SAHIIX.AI WhatsApp Bot running at http://localhost:${PORT}`);
   console.log('Webhook endpoint: POST /webhook');
   console.log('Connect this to OpenClaw gateway for WhatsApp integration');
+  if (!BRIDGE_TOKEN) {
+    console.warn('[WARN] OPENCLAW_BRIDGE_TOKEN is not set; outbound OpenClaw bridge requests will omit the Authorization header.');
+  }
 });
