@@ -38,8 +38,12 @@ npm install
 
 ```bash
 npm start
-python server.js
 ```
+
+`npm start` runs `node server.js`. The local API defaults to port 3001;
+check `http://localhost:3001/health` after startup. This repository contains
+the Node/SQLite estate service; it does not establish the deployment status
+of the separately described React/Hono SAHIIX OS platform.
 
 ## Model Routing
 
@@ -55,6 +59,7 @@ for the full contract.
 ```bash
 export AZURE_FOUNDRY_API_KEY=...        # never commit this
 export AZURE_FOUNDRY_BASE_URL=https://<resource>.openai.azure.com/openai/v1
+export OPENCLAW_BRIDGE_TOKEN=...        # required for whatsapp-bot.js outbound OpenClaw auth (or WHATSAPP_BRIDGE_TOKEN)
 ```
 
 > **Gotcha:** Claude deployments on Azure return `404 api_not_supported` on
@@ -77,13 +82,18 @@ openclaw-webhook.json
 package-lock.json
 package.json
 server.js
+setup-openclaw.sh
+start.sh
+sw.js
+tunnel.sh
+whatsapp-bot.js
 ```
 
 ## Development
 
 ```bash
-# lint / format before committing
-npm run lint
+# syntax check before committing
+npm run check
 
 # run the CI check locally
 gh workflow run hermes-azure-check.yml
